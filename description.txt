@@ -1,0 +1,7 @@
+Time in Zone — a single data field that accumulates time spent in a heart-rate zone.
+
+Two modes:
+- Current Zone (live): shows time in the zone you're in right now, switching as your HR moves.
+- Target Zone: tracks one zone (e.g. Z2) so you can see whether you banked your base minutes.
+
+Zones are read from your device's configured HR zones (Max HR / %Max) — nothing hardcoded.

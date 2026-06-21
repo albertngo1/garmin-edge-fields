@@ -1,0 +1,18 @@
+# Build output
+bin/
+dev/
+release/
+
+# IDE
+.project
+.settings/
+.vscode/*
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+
+# Developer key — NEVER commit
+developer_key.der
+developer_key.pem

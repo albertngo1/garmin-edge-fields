@@ -1,0 +1,40 @@
+# Adjust SDK_HOME to your installed Connect IQ SDK version.
+SDK_HOME := $(HOME)/Library/Application Support/Garmin/ConnectIQ/Sdks/connectiq-sdk-mac-9.1.0-2026-03-09-6a872a80b
+MONKEYC  := $(SDK_HOME)/bin/monkeyc
+JAVA_HOME := /opt/homebrew/opt/openjdk@17
+KEY := developer_key.der
+DEVICE := edge1050
+
+.PHONY: build sim tests release key
+
+# Generate a developer key (run once). Keep developer_key.der safe & gitignored.
+key:
+	openssl genrsa -out developer_key.pem 4096
+	openssl pkcs8 -topk8 -inform PEM -outform DER -in developer_key.pem -out $(KEY) -nocrypt
+	@echo "✅ developer_key.der created"
+
+# Sideloadable build -> dev/TimeInZone.prg  (copy to GARMIN/Apps on the Edge over USB)
+build:
+	@mkdir -p dev
+	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f monkey.jungle -o dev/TimeInZone.prg -y "$(KEY)" -d $(DEVICE)
+	@echo "✅ Built dev/TimeInZone.prg  — copy to <Edge>/GARMIN/Apps/"
+
+# Build + launch in the simulator (start 'connectiq' sim first, or this starts it)
+sim:
+	@mkdir -p bin
+	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f monkey.jungle -o bin/TimeInZone.prg -y "$(KEY)" -d $(DEVICE)
+	JAVA_HOME="$(JAVA_HOME)" "$(SDK_HOME)/bin/connectiq" & sleep 5; \
+	JAVA_HOME="$(JAVA_HOME)" "$(SDK_HOME)/bin/monkeydo" bin/TimeInZone.prg $(DEVICE)
+
+# Run unit tests in the simulator
+tests:
+	@mkdir -p bin
+	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f monkey.jungle -o bin/TimeInZoneTest.prg -y "$(KEY)" -d $(DEVICE) -t
+	JAVA_HOME="$(JAVA_HOME)" "$(SDK_HOME)/bin/connectiq" & sleep 5; \
+	JAVA_HOME="$(JAVA_HOME)" "$(SDK_HOME)/bin/monkeydo" bin/TimeInZoneTest.prg $(DEVICE) -t
+
+# Store-publishable package -> release/TimeInZone.iq
+release:
+	@mkdir -p release
+	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f monkey.jungle -o release/TimeInZone.iq -e -y "$(KEY)" -r
+	@echo "✅ Built release/TimeInZone.iq"
