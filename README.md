@@ -13,10 +13,13 @@ Built for the **Edge 1050**. Structure mirrors [bmacher/garmin-pw2hr](https://gi
 ```
 source/
   TimeInZoneApp.mc          # AppBase: settings storage + view wiring
-  TimeInZoneView.mc         # DataField: per-zone accumulation + draw
+  TimeInZoneView.mc         # DataField: per-zone accumulation + native-style draw
   ZoneCalc.mc               # pure helpers (zoneForHr, formatSeconds) — unit-tested
+  Layout.mc                 # adaptive cell layout (font fit + positions)
   SettingsMenuDelegate.mc   # on-device settings menu
-  test/ZoneCalcTest.mc      # unit tests
+  test/ZoneCalcTest.mc      # logic unit tests
+  test/LayoutTest.mc        # renders into off-screen buffers at every cell size,
+                            #   asserts no clipping/overlap + padding holds
 resources/                  # strings, drawable icon, GCM settings/properties
 manifest.xml monkey.jungle Makefile
 ```
