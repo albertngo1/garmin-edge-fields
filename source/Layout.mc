@@ -7,8 +7,19 @@ import Toybox.Lang;
 // engine sizes the field.
 module Layout {
 
-    const PAD = 4; // min padding from any cell edge
-    const GAP = 2; // min vertical gap between the label and the value
+    const PAD = 4;     // min horizontal padding from the cell edges
+    const GAP = 2;     // min vertical gap between the label and the value
+    const VPAD_MIN = 6;  // floor for top/bottom padding (small cells)
+    const VPAD_MAX = 18; // cap for top/bottom padding (large cells)
+
+    // Vertical padding scales with cell height so the top margin reads as
+    // intentional breathing room on big cells, not a flush 4px on a huge field.
+    function vPad(height as Number) as Number {
+        var p = (height * 6 / 100); // ~6% of height
+        if (p < VPAD_MIN) { p = VPAD_MIN; }
+        if (p > VPAD_MAX) { p = VPAD_MAX; }
+        return p;
+    }
 
     // Label fonts, largest first.
     function labelFonts() as Array {
@@ -68,11 +79,12 @@ module Layout {
         var lbl = fitLabel(dc, fullLabel, shortLabel, labelFonts(), maxW);
         var labelFont = lbl[:font];
         var labelH = dc.getFontHeight(labelFont);
-        var labelY = PAD;
+        var topPad = vPad(height);
+        var labelY = topPad;
 
         // The value occupies everything below the label (minus padding/gap).
         var regionTop = labelY + labelH + GAP;
-        var regionBot = height - PAD;
+        var regionBot = height - topPad;
         var regionH = regionBot - regionTop;
         if (regionH < 1) { regionH = 1; }
 

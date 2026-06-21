@@ -70,9 +70,11 @@ function checkCell(logger as Test.Logger, w as Number, h as Number, full as Stri
     Test.assertMessage(labelW <= maxW, "label clips " + ctx + " (" + labelW + ">" + maxW + ")");
     Test.assertMessage(valueW <= maxW, "value clips " + ctx + " (" + valueW + ">" + maxW + ")");
 
-    // Top/bottom padding respected (1px tolerance for integer rounding).
-    Test.assertMessage(labelY >= pad - 1, "label above top pad " + ctx);
-    Test.assertMessage(valueBottom <= h - pad + 1, "value below bottom pad " + ctx);
+    // Proportional top/bottom padding present (1px tolerance for rounding).
+    var vp = Layout.vPad(h);
+    Test.assertMessage(vp >= Layout.VPAD_MIN, "vpad below floor " + ctx);
+    Test.assertMessage(labelY >= vp, "insufficient top pad " + ctx + " (labelY=" + labelY + " vpad=" + vp + ")");
+    Test.assertMessage(valueBottom <= h - vp + 1, "value below bottom pad " + ctx);
 
     // No vertical overlap between label and value.
     Test.assertMessage(labelBottom + Layout.GAP <= valueTop + 1, "label/value overlap " + ctx +
