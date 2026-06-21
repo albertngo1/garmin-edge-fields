@@ -82,9 +82,15 @@ class TimeInZoneView extends WatchUi.DataField {
         var shownZone = (_mode == MODE_TARGET) ? _targetZone : _currentZone;
         var seconds = _zoneSeconds[shownZone];
 
-        // Label: "Z2 TIME" (target) or "ZONE 2" / "<Z1" (current)
-        var zoneText = (shownZone == 0) ? "<Z1" : ("Z" + shownZone.format("%d"));
-        var label = (_mode == MODE_TARGET) ? (zoneText + " TIME") : (zoneText + " NOW");
+        // Current mode: just "TIME" — read the zone off the adjacent HR Zone field.
+        // Target mode: name the locked zone, since nothing else indicates it.
+        var label;
+        if (_mode == MODE_TARGET) {
+            var zoneText = (shownZone == 0) ? "<Z1" : ("Z" + shownZone.format("%d"));
+            label = zoneText + " TIME";
+        } else {
+            label = "TIME";
+        }
 
         dc.setColor(zoneColor(shownZone), Graphics.COLOR_TRANSPARENT);
         dc.drawText(dc.getWidth() / 2, 4, Graphics.FONT_MEDIUM, label,
