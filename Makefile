@@ -1,5 +1,6 @@
-# Adjust SDK_HOME to your installed Connect IQ SDK version.
-SDK_HOME := $(HOME)/Library/Application Support/Garmin/ConnectIQ/Sdks/connectiq-sdk-mac-9.1.0-2026-03-09-6a872a80b
+# Points at the SDK Manager's "current" symlink, so it tracks whatever SDK
+# version you have active (no need to edit on upgrades).
+SDK_HOME := $(HOME)/Library/Application Support/Garmin/ConnectIQ/Sdks/current
 MONKEYC  := $(SDK_HOME)/bin/monkeyc
 JAVA_HOME := /opt/homebrew/opt/openjdk@17
 KEY := developer_key.der
