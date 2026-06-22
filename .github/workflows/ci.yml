@@ -8,6 +8,10 @@ on:
 env:
   SDK_VERSION: "9.2.0"
 
+# Compile-verify the field (and the test target) across every supported Edge
+# device. The unit tests themselves run locally via `make tests` — the Connect IQ
+# simulator segfaults headless on CI runners, so CI covers cross-device builds +
+# that the test code compiles, not test execution.
 jobs:
   build:
     name: build ${{ matrix.device }}
@@ -23,7 +27,7 @@ jobs:
           distribution: temurin
           java-version: "17"
       - name: System deps
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libwebkit2gtk-4.0-37 libusb-1.0-0 libsm6 xvfb
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libwebkit2gtk-4.0-37 libusb-1.0-0 libsm6
       - name: Install Connect IQ SDK
         run: |
           REL=$(curl -s https://developer.garmin.com/downloads/connect-iq/sdks/sdks.json | jq -r ".[] | select(.version==\"$SDK_VERSION\") | .linux")
@@ -37,57 +41,9 @@ jobs:
           unzip -q .ci/devices/edge-devices.zip -d "$HOME/.Garmin/ConnectIQ/Devices"
       - name: Generate throwaway dev key
         run: openssl genrsa 4096 2>/dev/null | openssl pkcs8 -topk8 -nocrypt -outform DER -out ci_key.der
-      - name: Build
+      - name: Build app
         run: |
           mkdir -p bin
           monkeyc -f monkey.jungle -o bin/TimeInZone-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -l 2
-
-  test:
-    name: test ${{ matrix.device }}
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        device: [edge1050, edge540]   # large + small screen exercise the layout tests
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - name: System deps
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libwebkit2gtk-4.0-37 libusb-1.0-0 libsm6 xvfb
-      - name: Install Connect IQ SDK
-        run: |
-          REL=$(curl -s https://developer.garmin.com/downloads/connect-iq/sdks/sdks.json | jq -r ".[] | select(.version==\"$SDK_VERSION\") | .linux")
-          wget -q "https://developer.garmin.com/downloads/connect-iq/sdks/$REL" -O /tmp/sdk.zip
-          mkdir -p "$HOME/ciq-sdk" && unzip -q /tmp/sdk.zip -d "$HOME/ciq-sdk"
-          chmod +x "$HOME/ciq-sdk/bin/"* || true
-          echo "$HOME/ciq-sdk/bin" >> "$GITHUB_PATH"
-      - name: Install device profiles
-        run: |
-          mkdir -p "$HOME/.Garmin/ConnectIQ/Devices"
-          unzip -q .ci/devices/edge-devices.zip -d "$HOME/.Garmin/ConnectIQ/Devices"
-      - name: Generate throwaway dev key
-        run: openssl genrsa 4096 2>/dev/null | openssl pkcs8 -topk8 -nocrypt -outform DER -out ci_key.der
-      - name: Build tests
-        run: |
-          mkdir -p bin
-          monkeyc -f monkey.jungle -o bin/test.prg -d ${{ matrix.device }} -y ci_key.der -t
-      - name: Run tests in simulator
-        run: |
-          export DISPLAY=:1
-          Xvfb :1 -screen 0 1280x1024x24 >/dev/null 2>&1 &
-          sleep 2
-          simulator >/dev/null 2>&1 &
-          for i in $(seq 1 12); do
-            sleep 5
-            if monkeydo bin/test.prg ${{ matrix.device }} -t > /tmp/test.txt 2>&1; then break; fi
-            grep -q "Unable to connect" /tmp/test.txt || break
-          done
-          cat /tmp/test.txt
-          if tail -1 /tmp/test.txt | grep -q "^PASSED"; then
-            echo "✅ ${{ matrix.device }} tests passed"
-          else
-            echo "❌ ${{ matrix.device }} tests failed"; exit 1
-          fi
+      - name: Compile tests
+        run: monkeyc -f monkey.jungle -o bin/test-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -t -l 2
