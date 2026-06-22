@@ -7,7 +7,14 @@ A single Edge data field that shows **accumulated time in a heart-rate zone**, i
 
 Zones are read straight off the device via `UserProfile.getHeartRateZones()`, so the field always matches your configured Max HR / %Max setup — nothing hardcoded.
 
-Built for the **Edge 1050**. Structure mirrors [bmacher/garmin-pw2hr](https://github.com/bmacher/garmin-pw2hr).
+Supports the current-generation Edge models (540 / 550 / 840 / 850 / 1050 / Explore 2 / MTB).
+
+## License & credits
+
+MIT — see [LICENSE](LICENSE). All code is original. The overall project structure
+(a data field with on-device + Garmin-Connect settings) was *inspired by*
+[bmacher/garmin-pw2hr](https://github.com/bmacher/garmin-pw2hr); no code was copied
+from it.
 
 ## Layout
 ```

@@ -16,3 +16,4 @@ release/
 # Developer key — NEVER commit
 developer_key.der
 developer_key.pem
+ci_key.der

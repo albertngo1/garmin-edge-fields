@@ -10,26 +10,33 @@ class TimeInZoneApp extends Application.AppBase {
         AppBase.initialize();
     }
 
+    // Setting keys -> default values. mode: 0 = time in CURRENT zone (switches
+    // live), 1 = time in a fixed TARGET zone. targetZone: zone tracked in mode 1.
+    private function settingDefaults() as Lang.Dictionary {
+        return {"mode" => 0, "targetZone" => 2};
+    }
+
+    // Seed any unset setting with its default.
     function onStart(state as Lang.Dictionary?) as Void {
-        // mode: 0 = time in CURRENT zone (switches live), 1 = time in a fixed TARGET zone
-        if (Storage.getValue("mode") == null) {
-            Storage.setValue("mode", 0);
-        }
-        // targetZone: which zone to track in mode 1 (default Z2 for base-mile tracking)
-        if (Storage.getValue("targetZone") == null) {
-            Storage.setValue("targetZone", 2);
+        var defs = settingDefaults();
+        var keys = defs.keys();
+        for (var i = 0; i < keys.size(); i++) {
+            var k = keys[i];
+            if (Storage.getValue(k) == null) {
+                Storage.setValue(k, defs[k]);
+            }
         }
     }
 
-    // Called when settings are changed via Garmin Connect Mobile
+    // Mirror Garmin-Connect-Mobile property edits into Storage (the live source).
     function onSettingsChanged() as Void {
-        var mode = Application.Properties.getValue("mode");
-        if (mode != null) {
-            Storage.setValue("mode", mode);
-        }
-        var targetZone = Application.Properties.getValue("targetZone");
-        if (targetZone != null) {
-            Storage.setValue("targetZone", targetZone);
+        var keys = settingDefaults().keys();
+        for (var i = 0; i < keys.size(); i++) {
+            var k = keys[i];
+            var v = Application.Properties.getValue(k);
+            if (v != null) {
+                Storage.setValue(k, v);
+            }
         }
     }
 
