@@ -116,17 +116,17 @@ class TimeInZoneView extends WatchUi.DataField {
         var useFull = L[:useFull] as Boolean;
         var rest = labelTextOnly(shownZone, useFull);
 
+        // Left-aligned to the padding edge, like native fields (heart at far left).
+        var startX = Layout.PAD;
         var heartW = dc.getTextWidthInPixels(HEART, labelFont);
-        var restW = dc.getTextWidthInPixels(rest, labelFont);
-        var startX = (dc.getWidth() - (heartW + restW)) / 2;
         dc.setColor(zoneColor(shownZone), Graphics.COLOR_TRANSPARENT);
         dc.drawText(startX, labelY, labelFont, HEART, Graphics.TEXT_JUSTIFY_LEFT);
         dc.setColor(mutedColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(startX + heartW, labelY, labelFont, rest, Graphics.TEXT_JUSTIFY_LEFT);
 
-        // Value: strong foreground, centered in the region below the label.
+        // Value: strong foreground, left-aligned below the label (native style).
         dc.setColor(fgColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(dc.getWidth() / 2, L[:valueY] as Number, L[:valueFont], valueText,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(Layout.PAD, L[:valueY] as Number, L[:valueFont], valueText,
+            Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 }
