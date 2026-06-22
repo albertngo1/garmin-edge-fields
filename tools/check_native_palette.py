@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Native-palette drift guard.
+"""Native-palette drift guard (per device).
 
-Reads the Edge device profile's personality.mss (the source of truth for native
-activity colors) and asserts that the colors we hardcode in
-source/TimeInZoneView.mc still match. If Garmin changes the native palette in a
-future SDK/device update, this fails — telling us to update the constants (and
-bump the committed device profile / SDK version).
+Each Edge model's native activity colors live in its device-profile
+personality.mss. We mirror them in a per-device Palette.mc (source-palette/<variant>),
+selected per device in monkey.jungle. This script verifies every device's Palette
+still matches that device's profile, so if Garmin changes a native color on an
+SDK/device-profile refresh, the build fails — telling us to update the variant.
 
 Usage:
-    check_native_palette.py [PERSONALITY_MSS_PATH]
+    check_native_palette.py [DEVICES_DIR]
 
-Default path is the locally SDK-Manager-installed edge1050 profile. CI passes the
-path it extracts from .ci/devices/edge-devices.zip.
+DEVICES_DIR holds <device>/personality.mss. Default = the locally SDK-Manager-
+installed profiles. CI passes the dir it extracts from .ci/devices/edge-devices.zip.
+If the dir is absent (e.g. a fresh clone with no SDK), the check skips cleanly.
 """
 
 import os
@@ -19,24 +20,21 @@ import re
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VIEW = os.path.join(REPO, "source", "TimeInZoneView.mc")
-
-DEFAULT_MSS = os.path.expanduser(
-    "~/Library/Application Support/Garmin/ConnectIQ/Devices/edge1050/personality.mss"
+JUNGLE = os.path.join(REPO, "monkey.jungle")
+DEFAULT_DEVICES = os.path.expanduser(
+    "~/Library/Application Support/Garmin/ConnectIQ/Devices"
 )
 
-# personality.mss block -> human role. We check the activity (data-screen) colors,
-# which is what a data field renders against.
-ROLES = {
-    "activity_color_light__background": "light background",
-    "activity_color_dark__background": "dark background",
-    "activity_color_light__text": "light text",
-    "activity_color_dark__text": "dark text",
+# personality.mss block  ->  Palette.mc constant
+ROLE_MAP = {
+    "activity_color_light__background": "LIGHT_BG",
+    "activity_color_dark__background": "DARK_BG",
+    "activity_color_light__text": "LIGHT_TEXT",
+    "activity_color_dark__text": "DARK_TEXT",
 }
 
 
 def mss_color(text, block):
-    # Find `<block> { ... #RRGGBB ... }` and return the first hex inside the block.
     m = re.search(re.escape(block) + r"\s*\{([^}]*)\}", text)
     if not m:
         return None
@@ -44,37 +42,67 @@ def mss_color(text, block):
     return h.group(1).upper() if h else None
 
 
+def palette_consts(path):
+    text = open(path, encoding="utf-8", errors="replace").read()
+    out = {}
+    for const in ROLE_MAP.values():
+        m = re.search(const + r"\s*=\s*0x([0-9A-Fa-f]{6})", text)
+        out[const] = m.group(1).upper() if m else None
+    return out
+
+
+def device_variant_map():
+    # Parse `edgeXXX.sourcePath = ...;source-palette/<variant>` from the jungle.
+    text = open(JUNGLE, encoding="utf-8", errors="replace").read()
+    m = {}
+    for dev, variant in re.findall(r"(\w+)\.sourcePath\s*=.*?source-palette/(\w+)", text):
+        m[dev] = variant
+    return m
+
+
 def main():
-    mss_path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_MSS
-    if not os.path.exists(mss_path):
-        print(f"ERROR: personality.mss not found: {mss_path}", file=sys.stderr)
+    devices_dir = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_DEVICES
+    if not os.path.isdir(devices_dir):
+        print(f"SKIP — no device profiles at {devices_dir} (install the SDK to enable)")
+        return 0
+
+    variants = device_variant_map()
+    if not variants:
+        print("ERROR: no per-device palette mapping found in monkey.jungle", file=sys.stderr)
         return 2
-    mss = open(mss_path, encoding="utf-8", errors="replace").read()
-    src = open(VIEW, encoding="utf-8", errors="replace").read().upper()
 
     problems = []
-    for block, role in ROLES.items():
-        hexval = mss_color(mss, block)
-        if hexval is None:
-            problems.append(f"  - {role}: block '{block}' not found in personality.mss")
+    checked = 0
+    for dev, variant in sorted(variants.items()):
+        mss_path = os.path.join(devices_dir, dev, "personality.mss")
+        pal_path = os.path.join(REPO, "source-palette", variant, "Palette.mc")
+        if not os.path.exists(mss_path):
+            print(f"·  {dev}: profile not present, skipped")
             continue
-        token = "0X" + hexval  # e.g. 0X17181D
-        # White is referenced via Graphics.COLOR_WHITE rather than a literal.
-        ok = token in src or (hexval == "FFFFFF" and "COLOR_WHITE" in src)
-        if not ok:
-            problems.append(
-                f"  - {role}: native is #{hexval} (expected 0x{hexval} in TimeInZoneView.mc) — not found"
-            )
+        if not os.path.exists(pal_path):
+            problems.append(f"{dev}: palette variant '{variant}' file missing ({pal_path})")
+            continue
+        native = open(mss_path, encoding="utf-8", errors="replace").read()
+        pal = palette_consts(pal_path)
+        checked += 1
+        for block, const in ROLE_MAP.items():
+            nat = mss_color(native, block)
+            ours = pal.get(const)
+            if nat != ours:
+                problems.append(
+                    f"{dev} ({variant}): {const} is 0x{ours} but native {block} is #{nat}"
+                )
+        print(f"{'✗' if any(dev in p for p in problems) else '✓'}  {dev}  ({variant})")
 
     if problems:
-        print("NATIVE PALETTE DRIFT — TimeInZoneView.mc colors no longer match the device profile:")
-        print("\n".join(problems))
-        print(f"\nSource of truth: {mss_path}")
-        print("Fix: update the hardcoded colors in source/TimeInZoneView.mc to match,")
+        print("\nNATIVE PALETTE DRIFT:")
+        for p in problems:
+            print("  - " + p)
+        print("\nFix: update the relevant source-palette/<variant>/Palette.mc to match,")
         print("then refresh .ci/devices/edge-devices.zip and bump the SDK version if needed.")
         return 1
 
-    print(f"OK — native palette matches ({len(ROLES)} colors checked against {os.path.basename(mss_path)})")
+    print(f"\nOK — {checked} device palette(s) match their profile.")
     return 0
 
 

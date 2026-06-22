@@ -122,12 +122,12 @@ class TimeInZoneView extends WatchUi.DataField {
         var g = (bgColor >> 8) & 0xFF;
         var b = bgColor & 0xFF;
         var dark = (r + g + b) < 384;
-        var textColor = dark ? Graphics.COLOR_WHITE : 0x313253;
+        var textColor = dark ? Palette.DARK_TEXT : Palette.LIGHT_TEXT;
 
-        // getBackgroundColor() reports pure black/white, but the Edge 1050's native
-        // activity background is #17181D (dark) / #DCDCDC (light) per personality.mss.
-        // Clear with those so the cell matches the surrounding native fields exactly.
-        var nativeBg = dark ? 0x17181D : 0xDCDCDC;
+        // getBackgroundColor() only reports binary black/white, but each device's
+        // native activity background is a specific tint (per personality.mss). Clear
+        // with the per-device Palette value so the cell matches native exactly.
+        var nativeBg = dark ? Palette.DARK_BG : Palette.LIGHT_BG;
         dc.setColor(nativeBg, nativeBg);
         dc.clear();
 

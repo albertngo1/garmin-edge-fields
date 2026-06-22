@@ -4,27 +4,43 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 12 * * 1"   # weekly: watch for a newer Connect IQ SDK
 
 env:
   SDK_VERSION: "9.2.0"
 
-# Compile-verify the field (and the test target) across every supported Edge
-# device. The unit tests themselves run locally via `make tests` — the Connect IQ
-# simulator segfaults headless on CI runners, so CI covers cross-device builds +
-# that the test code compiles, not test execution.
 jobs:
-  # Fail if the native activity palette in the device profile no longer matches
-  # the colors hardcoded in TimeInZoneView.mc (i.e. Garmin changed it on an SDK/
-  # device bump). Flags us to update the constants + refresh the device zip.
+  # Watch the public SDK feed. While the pinned SDK is the latest, the device
+  # profiles can't have changed upstream, so this passes instantly (the cheap
+  # "is anything even different?" gate). When a newer SDK ships, it FAILS and
+  # tells us to refresh profiles + re-check the palette + bump SDK_VERSION.
+  # (CI can't fetch the profiles themselves — they're Garmin-auth-gated — so this
+  # version signal is the most upstream check possible without a login.)
+  sdk-watch:
+    name: SDK version watch
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Compare pinned SDK vs latest published
+        run: |
+          LATEST=$(curl -s https://developer.garmin.com/downloads/connect-iq/sdks/sdks.json | jq -r '.[].version' | sort -V | tail -1)
+          echo "pinned=$SDK_VERSION  latest=$LATEST"
+          if [ "$LATEST" != "$SDK_VERSION" ]; then
+            echo "::error::New Connect IQ SDK $LATEST available (pinned $SDK_VERSION). Refresh device profiles in the SDK Manager, regenerate .ci/devices/edge-devices.zip, run 'make palette-check', then bump SDK_VERSION."
+            exit 1
+          fi
+          echo "SDK stable at $SDK_VERSION — native profiles can't have drifted upstream."
+
+  # Verify each device's hardcoded Palette still matches its committed profile.
   palette-guard:
     name: native palette guard
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Extract device profile
+      - name: Extract device profiles
         run: mkdir -p devices && unzip -q .ci/devices/edge-devices.zip -d devices
-      - name: Check native palette vs hardcoded colors
-        run: python3 tools/check_native_palette.py devices/edge1050/personality.mss
+      - name: Check palettes vs profiles
+        run: python3 tools/check_native_palette.py devices
 
   build:
     name: build ${{ matrix.device }}

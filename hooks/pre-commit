@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Pre-commit: block commits that drift the per-device native palette.
+# Runs the guard against the locally SDK-Manager-installed device profiles.
+# Skips cleanly if the SDK isn't installed (e.g. a fresh clone / CI checkout).
+set -e
+repo="$(git rev-parse --show-toplevel)"
+python3 "$repo/tools/check_native_palette.py" || {
+  echo
+  echo "pre-commit: native palette check failed — fix source-palette/*/Palette.mc or refresh profiles."
+  echo "(bypass with 'git commit --no-verify' if you know what you're doing)"
+  exit 1
+}
