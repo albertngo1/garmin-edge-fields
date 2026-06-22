@@ -76,5 +76,9 @@ jobs:
           monkeyc -f monkey.jungle -o bin/TimeInZone-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -l 2
       - name: Build PW:HR
         run: monkeyc -f pwhr.jungle -o bin/PwHr-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -l 2
+      - name: Build Aerobic Decoupling
+        run: monkeyc -f decoupling.jungle -o bin/PwHrDrift-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -l 2
+      - name: Build Time in Power Zone
+        run: monkeyc -f tipz.jungle -o bin/TimeInPowerZone-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -l 2
       - name: Compile tests
         run: monkeyc -f monkey.jungle -o bin/test-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -t -l 2

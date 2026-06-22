@@ -17,9 +17,11 @@ key:
 # Sideloadable builds -> dev/*.prg  (copy to GARMIN/Apps on the Edge over USB)
 build:
 	@mkdir -p dev
-	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f monkey.jungle -o dev/TimeInZone.prg -y "$(KEY)" -d $(DEVICE)
-	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f pwhr.jungle    -o dev/PwHr.prg       -y "$(KEY)" -d $(DEVICE)
-	@echo "✅ Built dev/TimeInZone.prg + dev/PwHr.prg  — copy to <Edge>/GARMIN/Apps/"
+	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f monkey.jungle     -o dev/TimeInZone.prg      -y "$(KEY)" -d $(DEVICE)
+	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f pwhr.jungle       -o dev/PwHr.prg            -y "$(KEY)" -d $(DEVICE)
+	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f decoupling.jungle -o dev/PwHrDrift.prg       -y "$(KEY)" -d $(DEVICE)
+	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f tipz.jungle       -o dev/TimeInPowerZone.prg -y "$(KEY)" -d $(DEVICE)
+	@echo "✅ Built dev/{TimeInZone,PwHr,PwHrDrift,TimeInPowerZone}.prg  — copy to <Edge>/GARMIN/Apps/"
 
 # Build + launch in the simulator (start 'connectiq' sim first, or this starts it)
 sim:

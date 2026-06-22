@@ -23,6 +23,24 @@ Zones are read straight off the device via `UserProfile.getHeartRateZones()`, so
 A live **power-to-heart-rate ratio** (watts per bpm), smoothed over a short rolling
 window — an aerobic-efficiency readout.
 
+### Aerobic Decoupling ("Pw:Hr Drift") — `source-decoupling` (`decoupling.jungle` / `manifest-decoupling.xml`)
+
+How much your power-to-HR efficiency **drifts from the first half of the ride to the
+second** (`(EF_first − EF_second) / EF_first`, as a %). Low drift means your aerobic
+system held up; rising drift is cardiac drift / fatigue — the classic aerobic-base
+benchmark is **< 5%**. The value is color-coded green (< 5%) / orange (5–10%) / red
+(> 10%). Power and HR are summed into one bucket per elapsed minute, so the
+first/second-half split is recomputed as the ride grows without storing every
+second (a 6-hour ride is ~360 buckets). Builds on the same power+HR basis as PW:HR.
+
+### Time in Power Zone — `source-tipz` (`tipz.jungle` / `manifest-tipz.xml`)
+
+The power twin of Time in Zone: **accumulated time in a Coggan power zone** (Z1–Z7),
+in the same two modes (live current zone, or a fixed target zone). Zones derive from
+your **FTP** (set in Garmin Connect Mobile, default 200 W); mode and target zone are
+also editable on-device via the Menu button. No power meter required to install, but
+it needs one to read anything.
+
 ## Matching the native look
 
 A core goal of these fields is to **blend in with Garmin's built-in data fields** rather than look like a bolted-on third-party field. A Connect IQ field draws its *own* cell, so matching native means reproducing what the firmware does — and most of that isn't documented, so it was reverse-engineered from the SDK device profiles:
@@ -57,21 +75,29 @@ from it.
 
 ## Layout
 ```
-source/                     # SHARED across both fields
+source/                     # SHARED across all fields
   Layout.mc                 # adaptive cell layout (font fit + positions)
-  ZoneCalc.mc               # pure helpers (zoneForHr, formatSeconds) — unit-tested
+  ZoneCalc.mc               # pure HR-zone + time helpers — unit-tested
+  PowerCalc.mc              # pure Coggan power-zone helper — unit-tested
+  Decouple.mc               # pure aerobic-decoupling math — unit-tested
   test/ZoneCalcTest.mc      # logic unit tests
+  test/PowerCalcTest.mc     # power-zone unit tests
+  test/DecoupleTest.mc      # decoupling unit tests
   test/LayoutTest.mc        # off-screen-buffer render tests: no clip/overlap + padding
 source-tiz/                 # Time in Zone app (App, View, settings menu)
 source-pwhr/                # PW:HR app (App, View)
+source-decoupling/          # Aerobic Decoupling app (App, View)
+source-tipz/                # Time in Power Zone app (App, View, settings menu)
 source-palette/             # per-device native color palettes (e1050 / x50 / mono)
 resources/                  # shared drawable icon
-resources-tiz/  resources-pwhr/   # per-app strings / settings
+resources-tiz/  resources-pwhr/  resources-decoupling/  resources-tipz/   # per-app strings / settings
 tools/check_native_palette.py   # palette drift guard
 hooks/pre-commit            # runs the guard before each commit (make install-hooks)
 .ci/devices/edge-devices.zip    # device profiles for CI builds
-manifest.xml      monkey.jungle  # Time in Zone
-manifest-pwhr.xml pwhr.jungle    # PW:HR
+manifest.xml        monkey.jungle      # Time in Zone
+manifest-pwhr.xml   pwhr.jungle        # PW:HR
+manifest-decoupling.xml decoupling.jungle  # Aerobic Decoupling
+manifest-tipz.xml   tipz.jungle        # Time in Power Zone
 Makefile
 ```
 
@@ -79,14 +105,14 @@ Makefile
 ```bash
 make key            # once — generates developer_key.der (gitignored)
 make install-hooks  # once — enables the pre-commit palette guard
-make build          # -> dev/TimeInZone.prg + dev/PwHr.prg
+make build          # -> dev/{TimeInZone,PwHr,PwHrDrift,TimeInPowerZone}.prg
 make tests          # run unit tests
 make palette-check  # verify per-device colors vs the device profiles
 ```
 
 ## Install (sideload)
-Plug the Edge in via USB and copy the field(s) you want — `dev/TimeInZone.prg` and/or `dev/PwHr.prg` — to `GARMIN/Apps/`.
-Eject, then add each on the Edge: **Activity Profile → Data Screens → add field → Connect IQ Fields → Time in Zone / PW:HR**.
+Plug the Edge in via USB and copy the field(s) you want — `dev/TimeInZone.prg`, `dev/PwHr.prg`, `dev/PwHrDrift.prg`, `dev/TimeInPowerZone.prg` — to `GARMIN/Apps/`.
+Eject, then add each on the Edge: **Activity Profile → Data Screens → add field → Connect IQ Fields**. The power fields (PW:HR, Pw:Hr Drift, Time in Power Zone) need a power meter; Time in Power Zone also needs your FTP set (Garmin Connect Mobile, or it defaults to 200 W).
 
 ## Prerequisite
 Set your HR zones on the device first (**Menu → My Stats → User Profile → Heart Rate Zones**, e.g. Max 195 / %Max) or the zone boundaries are wrong.

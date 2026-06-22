@@ -1,0 +1,8 @@
+<strings>
+    <string id="AppName">Time in Power Zone</string>
+    <string id="ftpTitle">FTP (watts)</string>
+    <string id="modeTitle">Mode</string>
+    <string id="modeCurrent">Current Zone (live)</string>
+    <string id="modeTarget">Target Zone</string>
+    <string id="targetZoneTitle">Target Zone (mode 2)</string>
+</strings>
