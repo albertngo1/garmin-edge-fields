@@ -1,8 +1,8 @@
-project.manifest = manifest.xml
+project.manifest = manifest-pwhr.xml
 
-# Shared code + Time-in-Zone app code/resources.
-base.sourcePath = source;source-tiz
-base.resourcePath = resources;resources-tiz
+# Shared code + PW:HR app code/resources.
+base.sourcePath = source;source-pwhr
+base.resourcePath = resources;resources-pwhr
 
 # Per-device native palette (see source-palette/).
 edge1050.sourcePath     = $(base.sourcePath);source-palette/e1050

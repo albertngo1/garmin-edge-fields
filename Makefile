@@ -14,11 +14,12 @@ key:
 	openssl pkcs8 -topk8 -inform PEM -outform DER -in developer_key.pem -out $(KEY) -nocrypt
 	@echo "✅ developer_key.der created"
 
-# Sideloadable build -> dev/TimeInZone.prg  (copy to GARMIN/Apps on the Edge over USB)
+# Sideloadable builds -> dev/*.prg  (copy to GARMIN/Apps on the Edge over USB)
 build:
 	@mkdir -p dev
 	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f monkey.jungle -o dev/TimeInZone.prg -y "$(KEY)" -d $(DEVICE)
-	@echo "✅ Built dev/TimeInZone.prg  — copy to <Edge>/GARMIN/Apps/"
+	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f pwhr.jungle    -o dev/PwHr.prg       -y "$(KEY)" -d $(DEVICE)
+	@echo "✅ Built dev/TimeInZone.prg + dev/PwHr.prg  — copy to <Edge>/GARMIN/Apps/"
 
 # Build + launch in the simulator (start 'connectiq' sim first, or this starts it)
 sim:

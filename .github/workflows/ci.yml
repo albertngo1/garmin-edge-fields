@@ -70,9 +70,11 @@ jobs:
           unzip -q .ci/devices/edge-devices.zip -d "$HOME/.Garmin/ConnectIQ/Devices"
       - name: Generate throwaway dev key
         run: openssl genrsa 4096 2>/dev/null | openssl pkcs8 -topk8 -nocrypt -outform DER -out ci_key.der
-      - name: Build app
+      - name: Build Time in Zone
         run: |
           mkdir -p bin
           monkeyc -f monkey.jungle -o bin/TimeInZone-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -l 2
+      - name: Build PW:HR
+        run: monkeyc -f pwhr.jungle -o bin/PwHr-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -l 2
       - name: Compile tests
         run: monkeyc -f monkey.jungle -o bin/test-${{ matrix.device }}.prg -d ${{ matrix.device }} -y ci_key.der -t -l 2
