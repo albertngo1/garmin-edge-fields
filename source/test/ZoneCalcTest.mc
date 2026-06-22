@@ -38,3 +38,15 @@ function testFormatSeconds(logger as Test.Logger) as Boolean {
     Test.assertEqual(ZoneCalc.formatSeconds(-10), "0:00");
     return true;
 }
+
+(:test)
+function testFormatTimeHundredths(logger as Test.Logger) as Boolean {
+    Test.assertEqual(ZoneCalc.formatTimeHundredths(0), "0:00.00");
+    Test.assertEqual(ZoneCalc.formatTimeHundredths(5000), "0:05.00");
+    Test.assertEqual(ZoneCalc.formatTimeHundredths(1990), "0:01.99");   // hundredths truncate
+    Test.assertEqual(ZoneCalc.formatTimeHundredths(65120), "1:05.12");
+    Test.assertEqual(ZoneCalc.formatTimeHundredths(600000), "10:00.00");
+    Test.assertEqual(ZoneCalc.formatTimeHundredths(3661000), "1:01:01.00");
+    Test.assertEqual(ZoneCalc.formatTimeHundredths(-10), "0:00.00");
+    return true;
+}

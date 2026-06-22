@@ -2,6 +2,7 @@ import Toybox.Activity;
 import Toybox.Application.Storage;
 import Toybox.Graphics;
 import Toybox.Lang;
+import Toybox.System;
 import Toybox.UserProfile;
 import Toybox.WatchUi;
 
@@ -12,8 +13,11 @@ class TimeInZoneView extends WatchUi.DataField {
 
     private const HEART = "♥ "; // heart glyph + space, prepended like native HR fields
 
-    // Accumulated seconds per zone. Index 0 = below Z1, indices 1..5 = Z1..Z5.
-    private var _zoneSeconds as Array<Number> = [0, 0, 0, 0, 0, 0];
+    // Accumulated MILLISECONDS per zone. Index 0 = below Z1, indices 1..5 = Z1..Z5.
+    // compute() runs at ~1 Hz, so we accumulate real elapsed time via timer deltas
+    // (System.getTimer) rather than a flat +1s — this yields the sub-second part.
+    private var _zoneMillis as Array<Number> = [0, 0, 0, 0, 0, 0];
+    private var _lastMs as Number? = null;     // last getTimer() while actively counting
     private var _boundaries as Array<Number>? = null;
     private var _currentZone as Number = 0;
 
@@ -51,38 +55,54 @@ class TimeInZoneView extends WatchUi.DataField {
 
         _currentZone = ZoneCalc.zoneForHr(hr, _boundaries);
 
+        // Accumulate the real wall-clock delta since the last active sample into the
+        // current zone. getTimer() is monotonic ms-since-boot; guard against its
+        // ~24.8-day wrap and against large gaps (paused/backgrounded) by ignoring
+        // non-positive or implausibly long deltas. When not actively counting we drop
+        // the anchor so paused time is never billed to a zone.
+        var now = System.getTimer();
         if (timerActive && hr != null && hr > 0) {
-            _zoneSeconds[_currentZone] += 1;
+            if (_lastMs != null) {
+                var delta = now - _lastMs;
+                if (delta > 0 && delta < 10000) {
+                    _zoneMillis[_currentZone] += delta;
+                }
+            }
+            _lastMs = now;
+        } else {
+            _lastMs = null;
         }
     }
 
-    // Garmin's zone colors: <Z1 gray, Z1 gray, Z2 blue, Z3 green, Z4 orange, Z5 red.
-    private function zoneColor(zone as Number) as Graphics.ColorType {
+    // Garmin's zone colors (<Z1 gray, Z1 gray, Z2 blue, Z3 green, Z4 orange, Z5 red),
+    // made theme-aware so the heart glyph always has contrast: DK_GRAY and BLUE are
+    // too dark against the #17181D dark background (and LT_GRAY too light on the
+    // #DCDCDC light one), so swap the grays and blue by theme. Green/orange/red read
+    // fine on both.
+    private function zoneColor(zone as Number, dark as Boolean) as Graphics.ColorType {
         switch (zone) {
-            case 1:  return Graphics.COLOR_LT_GRAY;
-            case 2:  return Graphics.COLOR_BLUE;
+            case 1:  return dark ? Graphics.COLOR_LT_GRAY : Graphics.COLOR_DK_GRAY;
+            case 2:  return dark ? 0x4AA3FF : Graphics.COLOR_BLUE;
             case 3:  return Graphics.COLOR_GREEN;
             case 4:  return Graphics.COLOR_ORANGE;
             case 5:  return Graphics.COLOR_RED;
-            default: return Graphics.COLOR_DK_GRAY;
+            default: return dark ? Graphics.COLOR_LT_GRAY : Graphics.COLOR_DK_GRAY;
         }
     }
 
-    // Uppercase to match native field labels (HEART RATE, ZONE, AVERAGE, ...).
+    // Zone number for the label: "<1" below Zone 1, else the digit.
+    private function zoneNum(shownZone as Number) as String {
+        return (shownZone == 0) ? "<1" : shownZone.format("%d");
+    }
+
+    // Dynamic, uppercase to match native labels. In Current mode shownZone is the
+    // live zone (label changes as you move zones); in Target mode it's fixed.
     private function textFull(shownZone as Number) as String {
-        if (_mode == MODE_TARGET) {
-            var zoneText = (shownZone == 0) ? "<Z1" : ("Z" + shownZone.format("%d"));
-            return "TIME IN " + zoneText;
-        }
-        return "TIME IN ZONE";
+        return "TIME IN ZONE " + zoneNum(shownZone);
     }
 
     private function textShort(shownZone as Number) as String {
-        if (_mode == MODE_TARGET) {
-            var zoneText = (shownZone == 0) ? "<Z1" : ("Z" + shownZone.format("%d"));
-            return zoneText;
-        }
-        return "TIME";
+        return "ZONE " + zoneNum(shownZone);
     }
 
     // Heart-included strings used by Layout for width sizing.
@@ -95,16 +115,24 @@ class TimeInZoneView extends WatchUi.DataField {
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
+        // Native activity text color (from edge1050 personality.mss):
+        // #313253 on the light theme, white on dark. Pick by bg luminance.
         var bgColor = getBackgroundColor();
-        var dark = (bgColor == Graphics.COLOR_BLACK);
-        var fgColor = dark ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        var mutedColor = dark ? Graphics.COLOR_LT_GRAY : Graphics.COLOR_DK_GRAY;
+        var r = (bgColor >> 16) & 0xFF;
+        var g = (bgColor >> 8) & 0xFF;
+        var b = bgColor & 0xFF;
+        var dark = (r + g + b) < 384;
+        var textColor = dark ? Graphics.COLOR_WHITE : 0x313253;
 
-        dc.setColor(bgColor, bgColor);
+        // getBackgroundColor() reports pure black/white, but the Edge 1050's native
+        // activity background is #17181D (dark) / #DCDCDC (light) per personality.mss.
+        // Clear with those so the cell matches the surrounding native fields exactly.
+        var nativeBg = dark ? 0x17181D : 0xDCDCDC;
+        dc.setColor(nativeBg, nativeBg);
         dc.clear();
 
         var shownZone = (_mode == MODE_TARGET) ? _targetZone : _currentZone;
-        var valueText = ZoneCalc.formatSeconds(_zoneSeconds[shownZone]);
+        var valueText = ZoneCalc.formatTimeHundredths(_zoneMillis[shownZone]);
 
         var L = Layout.compute(dc, dc.getWidth(), dc.getHeight(),
             labelFull(shownZone), labelShort(shownZone), valueText);
@@ -116,17 +144,18 @@ class TimeInZoneView extends WatchUi.DataField {
         var useFull = L[:useFull] as Boolean;
         var rest = labelTextOnly(shownZone, useFull);
 
-        // Left-aligned to the padding edge, like native fields (heart at far left).
-        var startX = Layout.PAD;
+        // Centered, like native fields (heart + label as a centered group up top).
         var heartW = dc.getTextWidthInPixels(HEART, labelFont);
-        dc.setColor(zoneColor(shownZone), Graphics.COLOR_TRANSPARENT);
+        var restW = dc.getTextWidthInPixels(rest, labelFont);
+        var startX = (dc.getWidth() - (heartW + restW)) / 2;
+        dc.setColor(zoneColor(shownZone, dark), Graphics.COLOR_TRANSPARENT);
         dc.drawText(startX, labelY, labelFont, HEART, Graphics.TEXT_JUSTIFY_LEFT);
-        dc.setColor(mutedColor, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(textColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(startX + heartW, labelY, labelFont, rest, Graphics.TEXT_JUSTIFY_LEFT);
 
-        // Value: strong foreground, left-aligned below the label (native style).
-        dc.setColor(fgColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(Layout.PAD, L[:valueY] as Number, L[:valueFont], valueText,
-            Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        // Value: native text color, centered below the label.
+        dc.setColor(textColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(dc.getWidth() / 2, L[:valueY] as Number, L[:valueFont], valueText,
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 }

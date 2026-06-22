@@ -43,4 +43,21 @@ module ZoneCalc {
         }
         return m.format("%d") + ":" + s.format("%02d");
     }
+
+    // Format milliseconds as H:MM:SS.ss (hundredths), dropping the hour when < 1h
+    // -> M:SS.ss. The hundredths come from the sub-second remainder.
+    function formatTimeHundredths(totalMillis as Number) as String {
+        if (totalMillis < 0) {
+            totalMillis = 0;
+        }
+        var totalSeconds = totalMillis / 1000;
+        var cs = (totalMillis % 1000) / 10;   // hundredths of a second (0-99)
+        var h = totalSeconds / 3600;
+        var m = (totalSeconds % 3600) / 60;
+        var s = totalSeconds % 60;
+        if (h > 0) {
+            return h.format("%d") + ":" + m.format("%02d") + ":" + s.format("%02d") + "." + cs.format("%02d");
+        }
+        return m.format("%d") + ":" + s.format("%02d") + "." + cs.format("%02d");
+    }
 }

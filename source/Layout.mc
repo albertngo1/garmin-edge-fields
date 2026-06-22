@@ -7,28 +7,20 @@ import Toybox.Lang;
 // engine sizes the field.
 module Layout {
 
-    const PAD = 4;     // min horizontal padding from the cell edges
-    const GAP = 2;     // min vertical gap between the label and the value
-    const VPAD_MIN = 6;  // floor for top/bottom padding (small cells)
-    const VPAD_MAX = 18; // cap for top/bottom padding (large cells)
+    const PAD = 4;  // min padding from the cell edges
+    const GAP = 2;  // min vertical gap between the label and the value
 
-    // Vertical padding scales with cell height so the top margin reads as
-    // intentional breathing room on big cells, not a flush 4px on a huge field.
-    function vPad(height as Number) as Number {
-        var p = (height * 6 / 100); // ~6% of height
-        if (p < VPAD_MIN) { p = VPAD_MIN; }
-        if (p > VPAD_MAX) { p = VPAD_MAX; }
-        return p;
-    }
-
-    // Label fonts, largest first.
+    // Label fonts, largest first. Native data-field labels are small Roboto-Medium
+    // (~14-18pt), so we stay in TINY/XTINY — never the larger FONT_SMALL.
     function labelFonts() as Array {
-        return [Graphics.FONT_SMALL, Graphics.FONT_TINY, Graphics.FONT_XTINY];
+        return [Graphics.FONT_TINY, Graphics.FONT_XTINY];
     }
 
-    // Value fonts, largest first (number fonts preferred for the time readout).
+    // Value fonts, largest first. Native value is a big bold number font
+    // (Garmin_Roboto_Bold ~44-48pt) → the FONT_NUMBER_* family, biggest first.
     function valueFonts() as Array {
         return [
+            Graphics.FONT_NUMBER_HOT,
             Graphics.FONT_NUMBER_MEDIUM,
             Graphics.FONT_NUMBER_MILD,
             Graphics.FONT_LARGE,
@@ -52,45 +44,67 @@ module Layout {
     }
 
     // Choose label font + whether the full label fits. Prefer the full text at the
-    // largest font that fits the width; if even the smallest font can't fit the
-    // full text, use the short text. Returns {:useFull, :font}.
-    function fitLabel(dc as Graphics.Dc, full as String, short as String, fonts as Array, maxWidth as Number) as Dictionary {
+    // largest font that fits BOTH the width and a height cap (so the label stays
+    // small like native fields, not a tall FONT_SMALL in a short cell). Falls back
+    // to the short text, then the smallest font. Returns {:useFull, :font}.
+    function fitLabel(dc as Graphics.Dc, full as String, short as String, fonts as Array, maxWidth as Number, maxHeight as Number) as Dictionary {
         for (var i = 0; i < fonts.size(); i++) {
-            if (dc.getTextWidthInPixels(full, fonts[i]) <= maxWidth) {
+            if (dc.getFontHeight(fonts[i]) <= maxHeight && dc.getTextWidthInPixels(full, fonts[i]) <= maxWidth) {
                 return {:useFull => true, :font => fonts[i]};
             }
         }
         for (var i = 0; i < fonts.size(); i++) {
-            if (dc.getTextWidthInPixels(short, fonts[i]) <= maxWidth) {
+            if (dc.getFontHeight(fonts[i]) <= maxHeight && dc.getTextWidthInPixels(short, fonts[i]) <= maxWidth) {
                 return {:useFull => false, :font => fonts[i]};
             }
         }
-        return {:useFull => false, :font => fonts[fonts.size() - 1]};
+        var smallest = fonts[fonts.size() - 1];
+        var fullFits = dc.getTextWidthInPixels(full, smallest) <= maxWidth;
+        return {:useFull => fullFits, :font => smallest};
     }
+
+    // Label top inset as a fraction of cell height. Native data fields float the
+    // label near the top with real breathing room above it (not pinned to the
+    // edge, and NOT centered as a block with the value). The firmware's exact
+    // datafield label geometry isn't published in the SDK, so this is a
+    // proportional inset tuned to match native — the one knob to adjust by eye.
+    const LABEL_TOP_PCT = 12;
 
     // Compute the full layout for a cell. `fullLabel`/`shortLabel` are the complete
     // label strings (heart glyph included) used for sizing. Returns the chosen
     // label font, whether the full label was used, value font, and y positions.
     // Label is drawn at y = top of text; value is drawn VCENTER (y = center).
+    //
+    // Native single-field structure: the label sits at a fixed top inset, and the
+    // value fills the whole region below it (sized as large as fits, like native's
+    // big timer number) and is centered in that region — not label+value centered
+    // as one block, and not shrunk to a slice about the cell midline.
     function compute(dc as Graphics.Dc, width as Number, height as Number, fullLabel as String, shortLabel as String, value as String) as Dictionary {
         var maxW = width - 2 * PAD;
         if (maxW < 1) { maxW = 1; }
 
-        var lbl = fitLabel(dc, fullLabel, shortLabel, labelFonts(), maxW);
+        // Cap the label at ~22% of cell height so it stays small/native-like.
+        var labelMaxH = height * 22 / 100;
+        var lbl = fitLabel(dc, fullLabel, shortLabel, labelFonts(), maxW, labelMaxH);
         var labelFont = lbl[:font];
         var labelH = dc.getFontHeight(labelFont);
-        var topPad = vPad(height);
-        var labelY = topPad;
 
-        // The value occupies everything below the label (minus padding/gap).
-        var regionTop = labelY + labelH + GAP;
-        var regionBot = height - topPad;
-        var regionH = regionBot - regionTop;
-        if (regionH < 1) { regionH = 1; }
+        // Label floats at a native-style top inset (not pinned to the edge).
+        var labelY = height * LABEL_TOP_PCT / 100;
+        if (labelY < PAD) { labelY = PAD; }
+        var labelBottom = labelY + labelH;
 
-        var valueFont = fitFont(dc, value, valueFonts(), maxW, regionH);
+        // Value fills the whole region BELOW the label (down to the bottom padding)
+        // so it renders as large as native's big timer number, then sits centered
+        // in that region. Using the full region — not a symmetric slice about the
+        // cell centre — is what keeps the timer big and properly spaced.
+        var regionTop = labelBottom + GAP;
+        var regionBot = height - PAD;
+        var valueMaxH = regionBot - regionTop;
+        if (valueMaxH < 1) { valueMaxH = 1; }
+        var valueFont = fitFont(dc, value, valueFonts(), maxW, valueMaxH);
         var valueH = dc.getFontHeight(valueFont);
-        var valueY = (regionTop + regionBot) / 2;
+        var valueY = (regionTop + regionBot) / 2;   // VCENTER in the region below the label
 
         return {
             :useFull    => lbl[:useFull],
@@ -99,9 +113,7 @@ module Layout {
             :labelH     => labelH,
             :valueFont  => valueFont,
             :valueY     => valueY,
-            :valueH     => valueH,
-            :regionTop  => regionTop,
-            :regionBot  => regionBot
+            :valueH     => valueH
         };
     }
 }

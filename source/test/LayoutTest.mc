@@ -70,11 +70,15 @@ function checkCell(logger as Test.Logger, w as Number, h as Number, full as Stri
     Test.assertMessage(labelW <= maxW, "label clips " + ctx + " (" + labelW + ">" + maxW + ")");
     Test.assertMessage(valueW <= maxW, "value clips " + ctx + " (" + valueW + ">" + maxW + ")");
 
-    // Proportional top/bottom padding present (1px tolerance for rounding).
-    var vp = Layout.vPad(h);
-    Test.assertMessage(vp >= Layout.VPAD_MIN, "vpad below floor " + ctx);
-    Test.assertMessage(labelY >= vp, "insufficient top pad " + ctx + " (labelY=" + labelY + " vpad=" + vp + ")");
-    Test.assertMessage(valueBottom <= h - vp + 1, "value below bottom pad " + ctx);
+    // Padding respected (1px tolerance for rounding).
+    Test.assertMessage(labelY >= Layout.PAD - 1, "label above top pad " + ctx);
+    Test.assertMessage(valueBottom <= h - Layout.PAD + 1, "value below bottom pad " + ctx);
+
+    // Label floats in the top region at a fixed inset (not pinned to the edge,
+    // not centered as a block); the value fills the region below it. Exact
+    // overlap/padding are asserted above and below.
+    Test.assertMessage(labelY <= h / 4 + 1, "label not in top region " + ctx +
+        " (labelY=" + labelY + ")");
 
     // No vertical overlap between label and value.
     Test.assertMessage(labelBottom + Layout.GAP <= valueTop + 1, "label/value overlap " + ctx +
@@ -84,9 +88,9 @@ function checkCell(logger as Test.Logger, w as Number, h as Number, full as Stri
 (:test)
 function testSpacingAcrossCellSizes(logger as Test.Logger) as Boolean {
     var cells = cellSizes();
-    // Current-zone mode labels (heart + uppercase), plus both value lengths.
-    var full = HEART_T + "TIME IN ZONE";
-    var short = HEART_T + "TIME";
+    // Current-zone mode labels (heart + uppercase, dynamic zone), both value lengths.
+    var full = HEART_T + "TIME IN ZONE 2";
+    var short = HEART_T + "ZONE 2";
     var values = ["0:00", "59:59", "1:23:45"];
 
     for (var c = 0; c < cells.size(); c++) {
@@ -102,9 +106,9 @@ function testSpacingAcrossCellSizes(logger as Test.Logger) as Boolean {
 (:test)
 function testSpacingTargetModeLabels(logger as Test.Logger) as Boolean {
     var cells = cellSizes();
-    // Target-zone mode labels: "TIME IN Z2" / "Z2".
-    var full = HEART_T + "TIME IN Z2";
-    var short = HEART_T + "Z2";
+    // Below-Z1 variant of the dynamic label.
+    var full = HEART_T + "TIME IN ZONE <1";
+    var short = HEART_T + "ZONE <1";
     var values = ["0:00", "1:23:45"];
 
     for (var c = 0; c < cells.size(); c++) {
