@@ -6,7 +6,7 @@ JAVA_HOME := /opt/homebrew/opt/openjdk@17
 KEY := developer_key.der
 DEVICE := edge1050
 
-.PHONY: build sim tests release key
+.PHONY: build sim tests release key palette-check
 
 # Generate a developer key (run once). Keep developer_key.der safe & gitignored.
 key:
@@ -33,6 +33,11 @@ tests:
 	JAVA_HOME="$(JAVA_HOME)" "$(MONKEYC)" -f monkey.jungle -o bin/TimeInZoneTest.prg -y "$(KEY)" -d $(DEVICE) -t
 	JAVA_HOME="$(JAVA_HOME)" "$(SDK_HOME)/bin/connectiq" & sleep 5; \
 	JAVA_HOME="$(JAVA_HOME)" "$(SDK_HOME)/bin/monkeydo" bin/TimeInZoneTest.prg $(DEVICE) -t
+
+# Verify our hardcoded native colors still match the device profile palette.
+# Reads the live SDK-Manager-installed edge1050 personality.mss.
+palette-check:
+	python3 tools/check_native_palette.py
 
 # Store-publishable package -> release/TimeInZone.iq
 release:

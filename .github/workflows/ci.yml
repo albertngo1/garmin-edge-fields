@@ -13,6 +13,19 @@ env:
 # simulator segfaults headless on CI runners, so CI covers cross-device builds +
 # that the test code compiles, not test execution.
 jobs:
+  # Fail if the native activity palette in the device profile no longer matches
+  # the colors hardcoded in TimeInZoneView.mc (i.e. Garmin changed it on an SDK/
+  # device bump). Flags us to update the constants + refresh the device zip.
+  palette-guard:
+    name: native palette guard
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract device profile
+        run: mkdir -p devices && unzip -q .ci/devices/edge-devices.zip -d devices
+      - name: Check native palette vs hardcoded colors
+        run: python3 tools/check_native_palette.py devices/edge1050/personality.mss
+
   build:
     name: build ${{ matrix.device }}
     runs-on: ubuntu-22.04
