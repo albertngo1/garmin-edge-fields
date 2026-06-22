@@ -6,10 +6,16 @@
         name="@Strings.AppName"
         launcherIcon="@Drawables.LauncherIcon"
         type="datafield"
-        minSdkVersion="6.0.0"
+        minSdkVersion="3.1.0"
         version="1.0.0">
         <iq:products>
+            <iq:product id="edge540" />
+            <iq:product id="edge550" />
+            <iq:product id="edge840" />
+            <iq:product id="edge850" />
             <iq:product id="edge1050" />
+            <iq:product id="edgeexplore2" />
+            <iq:product id="edgemtb" />
         </iq:products>
         <iq:permissions>
             <iq:uses-permission id="UserProfile" />
