@@ -1,0 +1,14 @@
+project.manifest = manifest-carbs.xml
+
+# Shared code + Carb Burn app code/resources.
+base.sourcePath = source;source-carbs
+base.resourcePath = resources;resources-carbs
+
+# Per-device native palette (see source-palette/).
+edge1050.sourcePath     = $(base.sourcePath);source-palette/e1050
+edge550.sourcePath      = $(base.sourcePath);source-palette/x50
+edge850.sourcePath      = $(base.sourcePath);source-palette/x50
+edge540.sourcePath      = $(base.sourcePath);source-palette/mono
+edge840.sourcePath      = $(base.sourcePath);source-palette/mono
+edgeexplore2.sourcePath = $(base.sourcePath);source-palette/mono
+edgemtb.sourcePath      = $(base.sourcePath);source-palette/mono

@@ -41,6 +41,16 @@ your **FTP** (set in Garmin Connect Mobile, default 200 W); mode and target zone
 also editable on-device via the Menu button. No power meter required to install, but
 it needs one to read anything.
 
+### Carb Burn — `source-carbs` (`carbs.jungle` / `manifest-carbs.xml`)
+
+A live estimate of **carbohydrate burn in grams/hour**, so you can pace fueling
+against the ~60–120 g/hr endurance guidance. Energy expenditure comes from power
+(kJ of work ≈ kcal burned, since human efficiency is ~24%), and the **carb fraction**
+of that energy ramps with intensity as a % of your **FTP** (~45% carbs easy → ~100%
+near/above threshold). Smoothed over a short rolling window like PW:HR. It's a
+population-average model, **not** lab measurement — a ballpark for fueling decisions,
+not a precise number. FTP is set in Garmin Connect Mobile (default 200 W).
+
 ## Matching the native look
 
 A core goal of these fields is to **blend in with Garmin's built-in data fields** rather than look like a bolted-on third-party field. A Connect IQ field draws its *own* cell, so matching native means reproducing what the firmware does — and most of that isn't documented, so it was reverse-engineered from the SDK device profiles:
@@ -80,17 +90,20 @@ source/                     # SHARED across all fields
   ZoneCalc.mc               # pure HR-zone + time helpers — unit-tested
   PowerCalc.mc              # pure Coggan power-zone helper — unit-tested
   Decouple.mc               # pure aerobic-decoupling math — unit-tested
+  Fuel.mc                   # pure carb-burn model — unit-tested
   test/ZoneCalcTest.mc      # logic unit tests
   test/PowerCalcTest.mc     # power-zone unit tests
   test/DecoupleTest.mc      # decoupling unit tests
+  test/FuelTest.mc          # carb-burn unit tests
   test/LayoutTest.mc        # off-screen-buffer render tests: no clip/overlap + padding
 source-tiz/                 # Time in Zone app (App, View, settings menu)
 source-pwhr/                # PW:HR app (App, View)
 source-decoupling/          # Aerobic Decoupling app (App, View)
 source-tipz/                # Time in Power Zone app (App, View, settings menu)
+source-carbs/               # Carb Burn app (App, View)
 source-palette/             # per-device native color palettes (e1050 / x50 / mono)
 resources/                  # shared drawable icon
-resources-tiz/  resources-pwhr/  resources-decoupling/  resources-tipz/   # per-app strings / settings
+resources-tiz/  resources-pwhr/  resources-decoupling/  resources-tipz/  resources-carbs/   # per-app strings / settings
 tools/check_native_palette.py   # palette drift guard
 hooks/pre-commit            # runs the guard before each commit (make install-hooks)
 .ci/devices/edge-devices.zip    # device profiles for CI builds
@@ -98,6 +111,7 @@ manifest.xml        monkey.jungle      # Time in Zone
 manifest-pwhr.xml   pwhr.jungle        # PW:HR
 manifest-decoupling.xml decoupling.jungle  # Aerobic Decoupling
 manifest-tipz.xml   tipz.jungle        # Time in Power Zone
+manifest-carbs.xml  carbs.jungle       # Carb Burn
 Makefile
 ```
 
@@ -105,14 +119,14 @@ Makefile
 ```bash
 make key            # once — generates developer_key.der (gitignored)
 make install-hooks  # once — enables the pre-commit palette guard
-make build          # -> dev/{TimeInZone,PwHr,PwHrDrift,TimeInPowerZone}.prg
+make build          # -> dev/{TimeInZone,PwHr,PwHrDrift,TimeInPowerZone,CarbBurn}.prg
 make tests          # run unit tests
 make palette-check  # verify per-device colors vs the device profiles
 ```
 
 ## Install (sideload)
-Plug the Edge in via USB and copy the field(s) you want — `dev/TimeInZone.prg`, `dev/PwHr.prg`, `dev/PwHrDrift.prg`, `dev/TimeInPowerZone.prg` — to `GARMIN/Apps/`.
-Eject, then add each on the Edge: **Activity Profile → Data Screens → add field → Connect IQ Fields**. The power fields (PW:HR, Pw:Hr Drift, Time in Power Zone) need a power meter; Time in Power Zone also needs your FTP set (Garmin Connect Mobile, or it defaults to 200 W).
+Plug the Edge in via USB and copy the field(s) you want — `dev/TimeInZone.prg`, `dev/PwHr.prg`, `dev/PwHrDrift.prg`, `dev/TimeInPowerZone.prg`, `dev/CarbBurn.prg` — to `GARMIN/Apps/`.
+Eject, then add each on the Edge: **Activity Profile → Data Screens → add field → Connect IQ Fields**. The power fields (PW:HR, Pw:Hr Drift, Time in Power Zone, Carb Burn) need a power meter; Time in Power Zone and Carb Burn also use your FTP (Garmin Connect Mobile, or it defaults to 200 W).
 
 ## Prerequisite
 Set your HR zones on the device first (**Menu → My Stats → User Profile → Heart Rate Zones**, e.g. Max 195 / %Max) or the zone boundaries are wrong.
