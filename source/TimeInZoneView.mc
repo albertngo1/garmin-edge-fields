@@ -132,10 +132,14 @@ class TimeInZoneView extends WatchUi.DataField {
         dc.clear();
 
         var shownZone = (_mode == MODE_TARGET) ? _targetZone : _currentZone;
-        var valueText = ZoneCalc.formatTimeHundredths(_zoneMillis[shownZone]);
+        // Split the value: big main M:SS (sizes the font) + small raised hundredths,
+        // like the native Timer field — so the hundredths don't shrink the number.
+        var ms = _zoneMillis[shownZone];
+        var mainStr = ZoneCalc.formatSeconds(ms / 1000);
+        var csStr = ((ms % 1000) / 10).format("%02d");
 
         var L = Layout.compute(dc, dc.getWidth(), dc.getHeight(),
-            labelFull(shownZone), labelShort(shownZone), valueText);
+            labelFull(shownZone), labelShort(shownZone), mainStr);
 
         // Label: heart glyph (zone color) + uppercase text (muted), centered as a group.
         // Built from the same pieces Layout sized, so we never split a multi-byte glyph.
@@ -153,9 +157,27 @@ class TimeInZoneView extends WatchUi.DataField {
         dc.setColor(textColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(startX + heartW, labelY, labelFont, rest, Graphics.TEXT_JUSTIFY_LEFT);
 
-        // Value: native text color, centered below the label.
+        // Value: big main number + small raised hundredths (native Timer style).
+        var valueFont = L[:valueFont];
+        var valueY = L[:valueY] as Number;
+        var scFont = Graphics.FONT_XTINY;
+        var mainW = dc.getTextWidthInPixels(mainStr, valueFont);
+        var mainH = dc.getFontHeight(valueFont);
+        var scW = dc.getTextWidthInPixels(csStr, scFont);
+        var valMaxW = dc.getWidth() - 2 * Layout.PAD;
+
         dc.setColor(textColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(dc.getWidth() / 2, L[:valueY] as Number, L[:valueFont], valueText,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        if (mainW + scW <= valMaxW) {
+            // Center the main + superscript pair; hundredths raised to the top of the number.
+            var valStartX = (dc.getWidth() - (mainW + scW)) / 2;
+            dc.drawText(valStartX, valueY, valueFont, mainStr,
+                Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+            dc.drawText(valStartX + mainW, valueY - mainH / 3, scFont, csStr,
+                Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        } else {
+            // Too tight for the superscript — just center the main number.
+            dc.drawText(dc.getWidth() / 2, valueY, valueFont, mainStr,
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        }
     }
 }
