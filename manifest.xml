@@ -2,7 +2,7 @@
 <iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
     <iq:application
         entry="TimeInZoneApp"
-        id="21f23aca-c272-4d2e-9c37-cadefc9e69cc"
+        id="c8b0a760-600a-421f-8d46-ad12a6d2edc9"
         name="@Strings.AppName"
         launcherIcon="@Drawables.LauncherIcon"
         type="datafield"

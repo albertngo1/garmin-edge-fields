@@ -33,6 +33,17 @@ ROLE_MAP = {
     "activity_color_dark__text": "DARK_TEXT",
 }
 
+# Intentional, documented deviations from the device profile's personality.mss.
+# Keyed by (device, Palette constant) -> expected hex (uppercase, no 0x).
+#
+# edge1050 LIGHT_BG: Garmin's edge1050 profile declares activity_color_light__background
+# as #DCDCDC (grey), but the physical Edge 1050 renders native datafield backgrounds
+# pure white. We match the real hardware, not the (stale) simulator profile. The guard
+# pins this to FFFFFF here so a profile refresh can't silently drag it back to grey.
+OVERRIDES = {
+    ("edge1050", "LIGHT_BG"): "FFFFFF",
+}
+
 
 def mss_color(text, block):
     m = re.search(re.escape(block) + r"\s*\{([^}]*)\}", text)
@@ -88,10 +99,16 @@ def main():
         for block, const in ROLE_MAP.items():
             nat = mss_color(native, block)
             ours = pal.get(const)
-            if nat != ours:
-                problems.append(
-                    f"{dev} ({variant}): {const} is 0x{ours} but native {block} is #{nat}"
-                )
+            expected = OVERRIDES.get((dev, const), nat)
+            if expected != ours:
+                if (dev, const) in OVERRIDES:
+                    problems.append(
+                        f"{dev} ({variant}): {const} is 0x{ours} but documented override expects #{expected}"
+                    )
+                else:
+                    problems.append(
+                        f"{dev} ({variant}): {const} is 0x{ours} but native {block} is #{nat}"
+                    )
         print(f"{'✗' if any(dev in p for p in problems) else '✓'}  {dev}  ({variant})")
 
     if problems:
