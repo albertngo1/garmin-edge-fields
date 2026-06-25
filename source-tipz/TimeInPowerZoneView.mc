@@ -38,6 +38,13 @@ class TimeInPowerZoneView extends WatchUi.DataField {
         _mode = (m != null) ? m : 0;
         var t = Storage.getValue("targetZone") as Number?;
         _targetZone = (t != null) ? t : 2;
+        // targetZone comes from GCM/Storage unvalidated; clamp to the valid zone range
+        // (1..7) so it can't index _zoneMillis (size 8, indices 0..7) out of bounds.
+        if (_targetZone < 1) {
+            _targetZone = 1;
+        } else if (_targetZone > 7) {
+            _targetZone = 7;
+        }
     }
 
     function compute(info as Activity.Info) as Void {
