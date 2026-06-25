@@ -132,11 +132,10 @@ class TimeInZoneView extends WatchUi.DataField {
         var textColor = dark ? Palette.DARK_TEXT : Palette.LIGHT_TEXT;
 
         // getBackgroundColor() only reports binary black/white, but each device's
-        // native activity background is a specific tint (per personality.mss). Clear
-        // with the per-device Palette value so the cell matches native exactly.
-        var nativeBg = dark ? Palette.DARK_BG : Palette.LIGHT_BG;
-        dc.setColor(nativeBg, nativeBg);
-        dc.clear();
+        // native activity background is a specific tint (per personality.mss).
+        // Background.clear() fills with the per-device Palette — a subtle vertical
+        // sheen in light theme so the cell matches the native fields.
+        Background.clear(dc, dark);
 
         var shownZone = (_mode == MODE_TARGET) ? _targetZone : _currentZone;
         // Split the value: big main M:SS (sizes the font) + small raised hundredths,

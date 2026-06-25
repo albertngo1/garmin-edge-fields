@@ -54,9 +54,7 @@ class CarbBurnView extends WatchUi.DataField {
         var b = bg & 0xFF;
         var dark = (r + g + b) < 384;
         var textColor = dark ? Palette.DARK_TEXT : Palette.LIGHT_TEXT;
-        var nativeBg = dark ? Palette.DARK_BG : Palette.LIGHT_BG;
-        dc.setColor(nativeBg, nativeBg);
-        dc.clear();
+        Background.clear(dc, dark);
 
         var full = "CARBS g/h";
         var short = "g/h";
