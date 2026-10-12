@@ -17,3 +17,7 @@ release/
 developer_key.der
 developer_key.pem
 ci_key.der
+
+# Python bytecode
+__pycache__/
+*.pyc
